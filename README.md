@@ -1,5 +1,14 @@
 # Hyparquet Writer
 
+```
+npx esbuild src/parquet-writer.js \
+  --bundle \
+  --platform=node \
+  --format=cjs \
+  --outfile=hyparquet-writer.cjs.js \
+  --target=node21
+```
+
 ![hyparquet writer parakeet](hyparquet-writer.jpg)
 
 [![npm](https://img.shields.io/npm/v/hyparquet-writer)](https://www.npmjs.com/package/hyparquet-writer)

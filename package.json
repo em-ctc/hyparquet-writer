@@ -19,36 +19,18 @@
     "type": "git",
     "url": "git+https://github.com/hyparam/hyparquet-writer.git"
   },
-  "main": "src/index.js",
+  "main": "./hyparquet-writer.cjs.js",
   "files": [
     "src",
     "types"
   ],
-  "type": "module",
   "types": "types/index.d.ts",
-  "exports": {
-    ".": {
-      "browser": {
-        "types": "./types/index.d.ts",
-        "import": "./src/index.js"
-      },
-      "default": {
-        "types": "./types/node.d.ts",
-        "import": "./src/node.js"
-      }
-    },
-    "./src/*.js": {
-      "types": "./types/*.d.ts",
-      "import": "./src/*.js"
-    }
-  },
   "sideEffects": false,
   "scripts": {
     "build:types": "tsc -p ./tsconfig.build.json",
     "coverage": "vitest run --coverage --coverage.include=src",
     "lint": "eslint",
     "lint:fix": "eslint --fix",
-    "prepare": "npm run build:types",
     "test": "vitest run"
   },
   "dependencies": {
