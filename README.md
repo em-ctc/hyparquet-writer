@@ -1,7 +1,7 @@
 # Hyparquet Writer
 
 ```
-npx esbuild src/parquet-writer.js \
+npx esbuild src/index.js \
   --bundle \
   --platform=node \
   --format=cjs \

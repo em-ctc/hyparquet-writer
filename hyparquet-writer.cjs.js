@@ -17,12 +17,107 @@ var __copyProps = (to, from, except, desc) => {
 };
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-// src/parquet-writer.js
-var parquet_writer_exports = {};
-__export(parquet_writer_exports, {
-  ParquetWriter: () => ParquetWriter
+// src/index.js
+var index_exports = {};
+__export(index_exports, {
+  ByteWriter: () => ByteWriter,
+  ParquetWriter: () => ParquetWriter,
+  autoSchemaElement: () => autoSchemaElement,
+  parquetWrite: () => parquetWrite,
+  parquetWriteBuffer: () => parquetWriteBuffer,
+  schemaFromColumnData: () => schemaFromColumnData
 });
-module.exports = __toCommonJS(parquet_writer_exports);
+module.exports = __toCommonJS(index_exports);
+
+// src/bytewriter.js
+function ByteWriter() {
+  this.buffer = new ArrayBuffer(1024);
+  this.view = new DataView(this.buffer);
+  this.offset = 0;
+  this.index = 0;
+  return this;
+}
+ByteWriter.prototype.ensure = function(size) {
+  if (this.index + size > this.buffer.byteLength) {
+    const newSize = Math.max(this.buffer.byteLength * 2, this.index + size);
+    const newBuffer = new ArrayBuffer(newSize);
+    new Uint8Array(newBuffer).set(new Uint8Array(this.buffer));
+    this.buffer = newBuffer;
+    this.view = new DataView(this.buffer);
+  }
+};
+ByteWriter.prototype.finish = function() {
+};
+ByteWriter.prototype.getBuffer = function() {
+  return this.buffer.slice(0, this.index);
+};
+ByteWriter.prototype.appendUint8 = function(value) {
+  this.ensure(this.index + 1);
+  this.view.setUint8(this.index, value);
+  this.offset++;
+  this.index++;
+};
+ByteWriter.prototype.appendUint32 = function(value) {
+  this.ensure(this.index + 4);
+  this.view.setUint32(this.index, value, true);
+  this.offset += 4;
+  this.index += 4;
+};
+ByteWriter.prototype.appendInt32 = function(value) {
+  this.ensure(this.index + 4);
+  this.view.setInt32(this.index, value, true);
+  this.offset += 4;
+  this.index += 4;
+};
+ByteWriter.prototype.appendInt64 = function(value) {
+  this.ensure(this.index + 8);
+  this.view.setBigInt64(this.index, BigInt(value), true);
+  this.offset += 8;
+  this.index += 8;
+};
+ByteWriter.prototype.appendFloat32 = function(value) {
+  this.ensure(this.index + 8);
+  this.view.setFloat32(this.index, value, true);
+  this.offset += 4;
+  this.index += 4;
+};
+ByteWriter.prototype.appendFloat64 = function(value) {
+  this.ensure(this.index + 8);
+  this.view.setFloat64(this.index, value, true);
+  this.offset += 8;
+  this.index += 8;
+};
+ByteWriter.prototype.appendBuffer = function(value) {
+  this.appendBytes(new Uint8Array(value));
+};
+ByteWriter.prototype.appendBytes = function(value) {
+  this.ensure(this.index + value.length);
+  new Uint8Array(this.buffer, this.index, value.length).set(value);
+  this.offset += value.length;
+  this.index += value.length;
+};
+ByteWriter.prototype.appendVarInt = function(value) {
+  while (true) {
+    if ((value & ~127) === 0) {
+      this.appendUint8(value);
+      return;
+    } else {
+      this.appendUint8(value & 127 | 128);
+      value >>>= 7;
+    }
+  }
+};
+ByteWriter.prototype.appendVarBigInt = function(value) {
+  while (true) {
+    if ((value & ~0x7fn) === 0n) {
+      this.appendUint8(Number(value));
+      return;
+    } else {
+      this.appendUint8(Number(value & 0x7fn | 0x80n));
+      value >>= 7n;
+    }
+  }
+};
 
 // src/unconvert.js
 var dayMillis = 864e5;
@@ -432,96 +527,6 @@ function compressFragment(input, ip, inputSize, writer) {
   }
 }
 
-// src/bytewriter.js
-function ByteWriter() {
-  this.buffer = new ArrayBuffer(1024);
-  this.view = new DataView(this.buffer);
-  this.offset = 0;
-  this.index = 0;
-  return this;
-}
-ByteWriter.prototype.ensure = function(size) {
-  if (this.index + size > this.buffer.byteLength) {
-    const newSize = Math.max(this.buffer.byteLength * 2, this.index + size);
-    const newBuffer = new ArrayBuffer(newSize);
-    new Uint8Array(newBuffer).set(new Uint8Array(this.buffer));
-    this.buffer = newBuffer;
-    this.view = new DataView(this.buffer);
-  }
-};
-ByteWriter.prototype.finish = function() {
-};
-ByteWriter.prototype.getBuffer = function() {
-  return this.buffer.slice(0, this.index);
-};
-ByteWriter.prototype.appendUint8 = function(value) {
-  this.ensure(this.index + 1);
-  this.view.setUint8(this.index, value);
-  this.offset++;
-  this.index++;
-};
-ByteWriter.prototype.appendUint32 = function(value) {
-  this.ensure(this.index + 4);
-  this.view.setUint32(this.index, value, true);
-  this.offset += 4;
-  this.index += 4;
-};
-ByteWriter.prototype.appendInt32 = function(value) {
-  this.ensure(this.index + 4);
-  this.view.setInt32(this.index, value, true);
-  this.offset += 4;
-  this.index += 4;
-};
-ByteWriter.prototype.appendInt64 = function(value) {
-  this.ensure(this.index + 8);
-  this.view.setBigInt64(this.index, BigInt(value), true);
-  this.offset += 8;
-  this.index += 8;
-};
-ByteWriter.prototype.appendFloat32 = function(value) {
-  this.ensure(this.index + 8);
-  this.view.setFloat32(this.index, value, true);
-  this.offset += 4;
-  this.index += 4;
-};
-ByteWriter.prototype.appendFloat64 = function(value) {
-  this.ensure(this.index + 8);
-  this.view.setFloat64(this.index, value, true);
-  this.offset += 8;
-  this.index += 8;
-};
-ByteWriter.prototype.appendBuffer = function(value) {
-  this.appendBytes(new Uint8Array(value));
-};
-ByteWriter.prototype.appendBytes = function(value) {
-  this.ensure(this.index + value.length);
-  new Uint8Array(this.buffer, this.index, value.length).set(value);
-  this.offset += value.length;
-  this.index += value.length;
-};
-ByteWriter.prototype.appendVarInt = function(value) {
-  while (true) {
-    if ((value & ~127) === 0) {
-      this.appendUint8(value);
-      return;
-    } else {
-      this.appendUint8(value & 127 | 128);
-      value >>>= 7;
-    }
-  }
-};
-ByteWriter.prototype.appendVarBigInt = function(value) {
-  while (true) {
-    if ((value & ~0x7fn) === 0n) {
-      this.appendUint8(Number(value));
-      return;
-    } else {
-      this.appendUint8(Number(value & 0x7fn | 0x80n));
-      value >>= 7n;
-    }
-  }
-};
-
 // node_modules/hyparquet/src/constants.js
 var ParquetType = [
   "BOOLEAN",
@@ -779,6 +784,98 @@ function writeElement(writer, type, value) {
 }
 
 // src/schema.js
+function schemaFromColumnData({ columnData, schemaOverrides }) {
+  const schema = [{
+    name: "root",
+    num_children: columnData.length
+  }];
+  let num_rows = 0;
+  for (const { name, data, type, nullable } of columnData) {
+    num_rows = num_rows || data.length;
+    if (num_rows !== data.length) {
+      throw new Error("columns must have the same length");
+    }
+    if (schemaOverrides?.[name]) {
+      const override = schemaOverrides[name];
+      if (override.name !== name) throw new Error("schema override name does not match column name");
+      if (override.num_children) throw new Error("schema override cannot have children");
+      if (override.repetition_type === "REPEATED") throw new Error("schema override cannot be repeated");
+      schema.push(override);
+    } else if (type) {
+      schema.push(basicTypeToSchemaElement(name, type, nullable));
+    } else {
+      schema.push(autoSchemaElement(name, data));
+    }
+  }
+  return schema;
+}
+function basicTypeToSchemaElement(name, type, nullable) {
+  const repetition_type = nullable === false ? "REQUIRED" : "OPTIONAL";
+  if (type === "STRING") {
+    return { name, type: "BYTE_ARRAY", converted_type: "UTF8", repetition_type };
+  }
+  if (type === "JSON") {
+    return { name, type: "BYTE_ARRAY", converted_type: "JSON", repetition_type };
+  }
+  if (type === "TIMESTAMP") {
+    return { name, type: "INT64", converted_type: "TIMESTAMP_MILLIS", repetition_type };
+  }
+  if (type === "UUID") {
+    return { name, type: "FIXED_LEN_BYTE_ARRAY", type_length: 16, logical_type: { type: "UUID" }, repetition_type };
+  }
+  if (type === "FLOAT16") {
+    return { name, type: "FIXED_LEN_BYTE_ARRAY", type_length: 2, logical_type: { type: "FLOAT16" }, repetition_type };
+  }
+  return { name, type, repetition_type };
+}
+function autoSchemaElement(name, values) {
+  let type;
+  let repetition_type = "REQUIRED";
+  let converted_type = void 0;
+  if (values instanceof Int32Array) return { name, type: "INT32", repetition_type };
+  if (values instanceof BigInt64Array) return { name, type: "INT64", repetition_type };
+  if (values instanceof Float32Array) return { name, type: "FLOAT", repetition_type };
+  if (values instanceof Float64Array) return { name, type: "DOUBLE", repetition_type };
+  for (const value of values) {
+    if (value === null || value === void 0) {
+      repetition_type = "OPTIONAL";
+    } else {
+      let valueType = void 0;
+      if (value === true || value === false) valueType = "BOOLEAN";
+      else if (typeof value === "bigint") valueType = "INT64";
+      else if (Number.isInteger(value)) valueType = "INT32";
+      else if (typeof value === "number") valueType = "DOUBLE";
+      else if (value instanceof Uint8Array) valueType = "BYTE_ARRAY";
+      else if (typeof value === "string") {
+        valueType = "BYTE_ARRAY";
+        if (type && !converted_type) throw new Error("mixed types not supported");
+        converted_type = "UTF8";
+      } else if (value instanceof Date) {
+        valueType = "INT64";
+        if (type && !converted_type) throw new Error("mixed types not supported");
+        converted_type = "TIMESTAMP_MILLIS";
+      } else if (typeof value === "object") {
+        converted_type = "JSON";
+        valueType = "BYTE_ARRAY";
+      } else if (!valueType) throw new Error(`cannot determine parquet type for: ${value}`);
+      if (type === void 0) {
+        type = valueType;
+      } else if (type === "INT32" && valueType === "DOUBLE") {
+        type = "DOUBLE";
+      } else if (type === "DOUBLE" && valueType === "INT32") {
+        valueType = "DOUBLE";
+      }
+      if (type !== valueType) {
+        throw new Error(`parquet cannot write mixed types: ${type} and ${valueType}`);
+      }
+    }
+  }
+  if (!type) {
+    type = "BYTE_ARRAY";
+    repetition_type = "OPTIONAL";
+  }
+  return { name, type, repetition_type, converted_type };
+}
 function getMaxRepetitionLevel(schemaPath) {
   let maxLevel = 0;
   for (const element of schemaPath) {
@@ -1157,7 +1254,47 @@ ParquetWriter.prototype.finish = function() {
   this.writer.appendUint32(827474256);
   this.writer.finish();
 };
+
+// src/write.js
+function parquetWrite({
+  writer,
+  columnData,
+  schema,
+  compressed = true,
+  statistics = true,
+  rowGroupSize = 1e5,
+  kvMetadata
+}) {
+  if (!schema) {
+    schema = schemaFromColumnData({ columnData });
+  } else if (columnData.some(({ type }) => type)) {
+    throw new Error("cannot provide both schema and columnData type");
+  } else {
+  }
+  const pq = new ParquetWriter({
+    writer,
+    schema,
+    compressed,
+    statistics,
+    kvMetadata
+  });
+  pq.write({
+    columnData,
+    rowGroupSize
+  });
+  pq.finish();
+}
+function parquetWriteBuffer(options) {
+  const writer = new ByteWriter();
+  parquetWrite({ ...options, writer });
+  return writer.getBuffer();
+}
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
-  ParquetWriter
+  ByteWriter,
+  ParquetWriter,
+  autoSchemaElement,
+  parquetWrite,
+  parquetWriteBuffer,
+  schemaFromColumnData
 });
